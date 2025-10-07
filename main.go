@@ -1,16 +1,35 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
-	"log"
+	"image/color"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/charmbracelet/huh"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
+
+	"github.com/sqweek/dialog"
 )
 
-func listFiles(dir string, allowedExtensions []string) (map[string]string, error) {
+type shortcutEntry struct {
+	filename   string
+	filedir    string
+	filepath   string
+	customname string
+	customicon string
+}
+
+//go:generate fyne bundle -o bundled.go fallback.png
+
+func listFiles(dir string, allowedExtensions []string) ([]shortcutEntry, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -22,10 +41,11 @@ func listFiles(dir string, allowedExtensions []string) (map[string]string, error
 		extSet[ext] = struct{}{}
 	}
 
-	out := make(map[string]string)
+	var out []shortcutEntry // we havent a clue ow long itll be
 	for _, e := range entries {
+		// skip directories
 		info, err := e.Info()
-		if err != nil || info.Mode()&os.ModeDir != 0 { // skip dirs
+		if err != nil || info.Mode()&os.ModeDir != 0 {
 			continue
 		}
 
@@ -34,66 +54,88 @@ func listFiles(dir string, allowedExtensions []string) (map[string]string, error
 		if _, ok := extSet[ext]; !ok {
 			continue // unwanted extension
 		}
-		out[name] = filepath.Join(dir, name)
+
+		entry := shortcutEntry{
+			filename:   name,
+			filedir:    dir,
+			filepath:   filepath.Join(dir, name),
+			customicon: "gopher.png",
+		}
+
+		out = append(out, entry)
 	}
+
 	return out, nil
 }
 
-func metadataExists(filePath string) bool {
+func fetchMetadataIfExists(filePath string) (prettyName string, imagePath string, err error) {
 	if _, err := os.Stat(filePath + ".json"); errors.Is(err, os.ErrNotExist) {
-		return false
+		return "", "", errors.ErrUnsupported
 	} else {
-		return true
+		metadataFile, err := os.Open(filePath + ".json")
+		if err != nil {
+			panic("aaaa!!! file doesn't exist somehow")
+		}
+		defer metadataFile.Close()
+
+		byteValue, _ := io.ReadAll(metadataFile)
+
+		var parsedData map[string]string
+		json.Unmarshal([]byte(byteValue), &parsedData)
+
+		return parsedData["name"], parsedData["icon"], nil
 	}
 }
 
-func getFileMetadata(filePath string) (name string, image string) {
-	return "Yuh", "pluh"
+func createButtons(files []shortcutEntry) []*fyne.Container {
+	buttons := make([]*fyne.Container, len(files))
+
+	for index, file := range files {
+		labelString := "file: " + file.filename
+		var imageResource fyne.Resource = resourceFallbackPng
+
+		prettyName, imagePath, err := fetchMetadataIfExists(file.filepath)
+		if err == nil {
+			if prettyName != "" {
+				labelString = prettyName
+			}
+
+			if imagePath != "" {
+				imageResource, _ = fyne.LoadResourceFromPath(file.filedir + "/" + imagePath)
+			}
+		}
+
+		label := container.New(layout.NewCenterLayout(), canvas.NewText(labelString, color.White))
+
+		img := canvas.NewImageFromResource(imageResource)
+		img.FillMode = canvas.ImageFillStretch
+		img.SetMinSize(fyne.NewSize(1920/5, 1080/5))
+
+		button := widget.NewButton("Launch", func() {
+			dialog.Message("%s", file.filepath).Title("Clicked").Info()
+		})
+
+		buttons[index] = container.New(layout.NewVBoxLayout(), label, img, button)
+	}
+	return buttons
 }
 
 func main() {
-	var daoutput string
-	var dalist map[string]string
+	allowedExtensions := []string{"", ".exe", ".lnk"}
+	files, _ := listFiles("/Users/jamie/Desktop/Test", allowedExtensions)
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Value(&daoutput).
-				// Height(8).
-				Title("Experiences and Tools").
-				OptionsFunc(func() []huh.Option[string] {
-					options := make([]string, 0, len(dalist))
-					for k, j := range dalist {
-						if metadataExists(j) {
-							name, image := getFileMetadata(j)
-							m := k + " " + name + " " + image
-							options = append(options, m)
-						} else {
-							options = append(options, k)
-						}
-					}
-					return huh.NewOptions(options...)
-				}, &dalist),
-		),
-	)
+	a := app.New()
+	w := a.NewWindow("Hello")
 
-	path := "/Users/jamie/Desktop/Test"
-	extensions := []string{"", ".app", ".exe"}
-
-	if files, err := listFiles(path, extensions); err == nil {
-		dalist = files
-	} else {
-		log.Fatal(err)
+	content := container.New(layout.NewGridLayout(3))
+	for _, b := range createButtons(files) {
+		content.Add(b)
 	}
 
-	err := form.Run()
-	if err != nil {
-		log.Fatal(err)
-	}
+	scrollContainer := container.NewScroll(content)
+	scrollContainer.SetMinSize(fyne.NewSize(1280, 720))
 
-	// cmd := exec.Command("open", dalist[daoutput])
-	// if err := cmd.Run(); err != nil {
-	// 	println(err.Error())
-	// }
-	println(dalist[daoutput])
+	w.SetContent(scrollContainer)
+
+	w.ShowAndRun()
 }

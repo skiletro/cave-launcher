@@ -24,9 +24,7 @@
               [
                 go
                 gopls
-                pkg-config
-                gtk3
-                glfw
+                fyne
               ]
               ++ lib.optionals isDarwin [pkgs.apple-sdk_14];
           };
@@ -35,7 +33,7 @@
               pname = "cave-assistant";
               version = "0.1.0";
               src = ./.;
-              vendorHash = "";
+              vendorHash = "sha256-n2+qiZ+ktjdNiBeg6uIFPDbi5gwdX5wNLE6DAeiTEEc=";
             in
             {
               default = pkgs.buildGoModule {
@@ -45,8 +43,6 @@
                   src
                   vendorHash
                   ;
-
-                nativeBuildInputs = [ pkgs.ffmpeg_8 ];
 
                 buildInputs =
                   lib.optionals isLinux (
