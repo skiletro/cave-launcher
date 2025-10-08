@@ -13,59 +13,28 @@
       ];
 
       perSystem =
-        { pkgs, lib, ... }:
-        let
-          inherit (pkgs.stdenvNoCC.hostPlatform) isLinux isDarwin;
-        in
+        { pkgs, ... }:
         {
           devShells.default = pkgs.mkShell {
-            buildInputs =
-              with pkgs;
-              [
-                go
-                gopls
-                fyne
-              ]
-              ++ lib.optionals isDarwin [pkgs.apple-sdk_14];
+            buildInputs = with pkgs; [
+              go
+              gopls
+              fyne
+            ];
           };
+
           packages =
             let
-              pname = "cave-assistant";
-              version = "0.1.0";
-              src = ./.;
-              vendorHash = "sha256-n2+qiZ+ktjdNiBeg6uIFPDbi5gwdX5wNLE6DAeiTEEc=";
+              attrs = {
+                pname = "cave-assistant";
+                version = "0.1.0";
+                src = ./.;
+                vendorHash = "sha256-IgMKo5OE00HuSQnYX0FwYiwFVAtvPo2XJD0fVAjpfuI=";
+              };
             in
             {
-              default = pkgs.buildGoModule {
-                inherit
-                  pname
-                  version
-                  src
-                  vendorHash
-                  ;
-
-                buildInputs =
-                  lib.optionals isLinux (
-                    with pkgs;
-                    [
-                      glfw
-                      pkg-config
-                      gtk3
-                    ]
-                  )
-                  ++ lib.optionals isDarwin [
-                    pkgs.apple-sdk_14
-                  ];
-              };
-
-              windows = pkgs.pkgsCross.mingwW64.buildGoModule {
-                inherit
-                  pname
-                  version
-                  src
-                  vendorHash
-                  ;
-              };
+              default = pkgs.buildGoModule attrs;
+              windows = pkgs.pkgsCross.mingwW64.buildGoModule attrs;
             };
         };
     };
