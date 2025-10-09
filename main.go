@@ -3,10 +3,10 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"image/color"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -72,10 +72,8 @@ func fetchMetadataIfExists(filePath string) (prettyName string, imagePath string
 	if _, err := os.Stat(filePath + ".json"); errors.Is(err, os.ErrNotExist) {
 		return "", "", errors.ErrUnsupported
 	} else {
-		metadataFile, err := os.Open(filePath + ".json")
-		if err != nil {
-			panic("aaaa!!! file doesn't exist somehow")
-		}
+		metadataFile, _ := os.Open(filePath + ".json")
+
 		defer metadataFile.Close()
 
 		byteValue, _ := io.ReadAll(metadataFile)
@@ -88,7 +86,7 @@ func fetchMetadataIfExists(filePath string) (prettyName string, imagePath string
 }
 
 func createButtons(files []shortcutEntry) []*fyne.Container {
-	buttons := make([]*fyne.Container, len(files))
+	entries := make([]*fyne.Container, len(files))
 
 	for index, file := range files {
 		labelString := "file: " + file.filename
@@ -105,35 +103,59 @@ func createButtons(files []shortcutEntry) []*fyne.Container {
 			}
 		}
 
-		label := container.New(layout.NewCenterLayout(), canvas.NewText(labelString, color.White))
+		// label := container.New(layout.NewCenterLayout(), canvas.NewText(labelString, color.White))
+		label := widget.NewRichTextWithText(labelString)
+		label.Wrapping = fyne.TextWrapWord
 
 		img := canvas.NewImageFromResource(imageResource)
 		img.FillMode = canvas.ImageFillStretch
-		img.SetMinSize(fyne.NewSize(1920/5, 1080/5))
+		img.SetMinSize(fyne.NewSize(180, 135))
 
 		button := widget.NewButton("Launch", func() {
 			dialog.Message("%s", file.filepath).Title("Clicked").Info()
 		})
 
-		buttons[index] = container.New(layout.NewVBoxLayout(), label, img, button)
+		entry := container.New(layout.NewVBoxLayout(), label, img, button)
+
+		entries[index] = entry
 	}
-	return buttons
+	return entries
 }
 
 func main() {
-	allowedExtensions := []string{"", ".exe", ".lnk"}
-	files, _ := listFiles("/Users/jamie/Desktop/Test", allowedExtensions)
+	var (
+		fileDir           string
+		allowedExtensions []string
+	)
+
+	switch runtime.GOOS {
+	case "darwin":
+		fileDir = "/Users/jamie/Desktop/Test"
+		allowedExtensions = []string{"", ".lnk"}
+	case "windows":
+		fileDir = "C:\\Users\\mmu\\Desktop"
+		allowedExtensions = []string{".exe", ".lnk"}
+	default:
+		panic("File Dir not set! Cannot detect the OS.")
+	}
+	files, err := listFiles(fileDir, allowedExtensions)
+	if err != nil {
+		panic("Can't get files.")
+	}
 
 	a := app.New()
-	w := a.NewWindow("Hello")
+	w := a.NewWindow("CAVE Launcher")
 
-	content := container.New(layout.NewGridLayout(3))
+	var individualEntryWidth float32 = 180.0
+	var columnAmountByDefault float32 = 3.0
+
+	content := container.NewGridWrap(fyne.NewSize(individualEntryWidth, 250))
 	for _, b := range createButtons(files) {
 		content.Add(b)
 	}
 
 	scrollContainer := container.NewScroll(content)
-	scrollContainer.SetMinSize(fyne.NewSize(1280, 720))
+	scrollContainer.SetMinSize(fyne.NewSize((individualEntryWidth*columnAmountByDefault)+(4*(columnAmountByDefault-1)), 450))
 
 	w.SetContent(scrollContainer)
 
