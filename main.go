@@ -158,6 +158,7 @@ func main() {
 	scrollContainer.SetMinSize(fyne.NewSize((individualEntryWidth*columnAmountByDefault)+(4*(columnAmountByDefault-1)), 450))
 
 	w.SetContent(scrollContainer)
+	w.SetFixedSize(true)
 
 	w.ShowAndRun()
 }
