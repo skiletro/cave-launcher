@@ -20,6 +20,7 @@
               go
               gopls
               fyne
+              (if pkgs.stdenvNoCC.hostPlatform.isDarwin then apple-sdk_14 else hello)
             ];
           };
 
