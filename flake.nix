@@ -20,22 +20,22 @@
               go
               gopls
               fyne
-              (if pkgs.stdenvNoCC.hostPlatform.isDarwin then apple-sdk_14 else hello)
+              (if pkgs.stdenvNoCC.hostPlatform.isDarwin then apple-sdk_14 else glfw)
             ];
           };
 
           packages =
             let
-              attrs = {
+              attrs = flags: {
                 pname = "cave-assistant";
                 version = "0.1.0";
                 src = ./.;
-                vendorHash = "sha256-IgMKo5OE00HuSQnYX0FwYiwFVAtvPo2XJD0fVAjpfuI=";
+                vendorHash = "sha256-7OhM7t0BRnmpEtvuEt/AuxklB20NT+ivvrTYe5KibEs=";
               };
             in
             {
               default = pkgs.buildGoModule attrs;
-              windows = pkgs.pkgsCross.mingwW64.buildGoModule attrs;
+              windows = pkgs.pkgsCross.mingwW64.buildGoModule attrs // { ldflags = "-H=windowsgui";};
             };
         };
     };
