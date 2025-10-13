@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -15,16 +16,12 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-
-	"github.com/sqweek/dialog"
 )
 
 type shortcutEntry struct {
-	filename   string
-	filedir    string
-	filepath   string
-	customname string
-	customicon string
+	filename string
+	filedir  string
+	filepath string
 }
 
 //go:generate fyne bundle -o bundled.go fallback.png
@@ -56,10 +53,9 @@ func listFiles(dir string, allowedExtensions []string) ([]shortcutEntry, error) 
 		}
 
 		entry := shortcutEntry{
-			filename:   name,
-			filedir:    dir,
-			filepath:   filepath.Join(dir, name),
-			customicon: "gopher.png",
+			filename: name,
+			filedir:  dir,
+			filepath: filepath.Join(dir, name),
 		}
 
 		out = append(out, entry)
@@ -85,6 +81,25 @@ func fetchMetadataIfExists(filePath string) (prettyName string, imagePath string
 	}
 }
 
+func openFile(path string) error {
+	var cmd string
+	var args []string
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = "cmd"
+		args = []string{"/c", "start", path}
+	case "darwin":
+		cmd = "open"
+		args = []string{path}
+	default: // linux and others
+		cmd = "xdg-open"
+		args = []string{path}
+	}
+
+	return exec.Command(cmd, args...).Start()
+}
+
 func createButtons(files []shortcutEntry) []*fyne.Container {
 	entries := make([]*fyne.Container, len(files))
 
@@ -103,19 +118,23 @@ func createButtons(files []shortcutEntry) []*fyne.Container {
 			}
 		}
 
-		// label := container.New(layout.NewCenterLayout(), canvas.NewText(labelString, color.White))
 		label := widget.NewRichTextWithText(labelString)
-		label.Wrapping = fyne.TextWrapWord
+		label.Truncation = fyne.TextTruncateEllipsis
+		label.Resize(fyne.NewSize(180, 50))
+
+		labelContainer := container.NewWithoutLayout(label)
+		labelContainer.Resize(fyne.NewSize(180, 50))
 
 		img := canvas.NewImageFromResource(imageResource)
 		img.FillMode = canvas.ImageFillStretch
 		img.SetMinSize(fyne.NewSize(180, 135))
 
 		button := widget.NewButton("Launch", func() {
-			dialog.Message("%s", file.filepath).Title("Clicked").Info()
+			// dialog.Message("%s", file.filepath).Title("Clicked").Info()
+			openFile(file.filepath)
 		})
 
-		entry := container.New(layout.NewVBoxLayout(), label, img, button)
+		entry := container.New(layout.NewVBoxLayout(), labelContainer, img, button)
 
 		entries[index] = entry
 	}
