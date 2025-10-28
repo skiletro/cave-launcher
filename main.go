@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -85,10 +86,12 @@ func openFile(path string) error {
 	var cmd string
 	var args []string
 
+	wrappedPath := fmt.Sprintf("'%s'", path)
+
 	switch runtime.GOOS {
 	case "windows":
 		cmd = "cmd"
-		args = []string{"/c", "start", path}
+		args = []string{"/c", "start", "", wrappedPath}
 	case "darwin":
 		cmd = "open"
 		args = []string{path}
@@ -148,14 +151,15 @@ func main() {
 	)
 
 	switch runtime.GOOS {
+	case "windows":
+		fileDir = "C:\\Users\\mmu\\Documents\\Shortcuts"
+		allowedExtensions = []string{".exe", ".lnk"}
 	case "darwin":
 		fileDir = "/Users/jamie/Desktop/Test"
 		allowedExtensions = []string{"", ".lnk"}
-	case "windows":
-		fileDir = "C:\\Users\\mmu\\Desktop"
-		allowedExtensions = []string{".exe", ".lnk"}
 	default:
-		panic("File Dir not set! Cannot detect the OS.")
+		fileDir = "/home/jamie/Desktop/Test"
+		allowedExtensions = []string{"", ".lnk"}
 	}
 	files, err := listFiles(fileDir, allowedExtensions)
 	if err != nil {
