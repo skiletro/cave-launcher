@@ -13,7 +13,7 @@
       ];
 
       perSystem =
-        { pkgs, lib, ... }:
+        { pkgs, ... }:
         {
           devShells.default = pkgs.mkShell {
             buildInputs = with pkgs; [
@@ -26,17 +26,12 @@
 
           packages =
             let
-              ss = lib.substring;
-              lmd = self.lastModifiedDate;
-
               attrs = rec {
                 pname = "cave-assistant";
                 version = "0.1.0";
                 src = ./.;
                 vendorHash = "sha256-7OhM7t0BRnmpEtvuEt/AuxklB20NT+ivvrTYe5KibEs=";
                 ldflags = [
-                  "-X 'main.VERSION=v${version}'" # for ver number in titlebar
-                  "-X 'main.LAST_MODIFIED=Built ${ss 6 2 lmd}/${ss 4 2 lmd}/${ss 0 4 lmd}'"
                   "-s" # omits symbol table
                   "-w" # omits DWARF debug info
                   "-H=windowsgui"

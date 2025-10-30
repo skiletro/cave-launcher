@@ -117,7 +117,7 @@ func createButtons(files []shortcutEntry) []*fyne.Container {
 			}
 
 			if imagePath != "" {
-				imageResource, _ = fyne.LoadResourceFromPath(file.filedir + "/" + imagePath)
+				imageResource, _ = fyne.LoadResourceFromPath(filepath.Join(file.filedir, imagePath))
 			}
 		}
 
@@ -133,7 +133,6 @@ func createButtons(files []shortcutEntry) []*fyne.Container {
 		img.SetMinSize(fyne.NewSize(180, 135))
 
 		button := widget.NewButton("Launch", func() {
-			// dialog.Message("%s", file.filepath).Title("Clicked").Info()
 			openFile(file.filepath)
 		})
 
@@ -145,36 +144,29 @@ func createButtons(files []shortcutEntry) []*fyne.Container {
 }
 
 func main() {
-	var (
-		fileDir           string
-		allowedExtensions []string
-	)
-
-	switch runtime.GOOS {
-	case "windows":
-		fileDir = "C:\\Users\\mmu\\Documents\\Shortcuts"
-		allowedExtensions = []string{".exe", ".lnk"}
-	case "darwin":
-		fileDir = "/Users/jamie/Desktop/Test"
-		allowedExtensions = []string{"", ".lnk"}
-	default:
-		fileDir = "/home/jamie/Desktop/Test"
-		allowedExtensions = []string{"", ".lnk"}
-	}
-	files, err := listFiles(fileDir, allowedExtensions)
-	if err != nil {
-		panic("Can't get files.")
-	}
-
 	a := app.New()
 	w := a.NewWindow("CAVE Launcher")
+
+	executable, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+
+	var fileDir string = filepath.Join(filepath.Dir(executable), "shortcuts")
+	fmt.Println(fileDir)
+	var allowedExtensions []string = []string{".exe", ".lnk", ""}
+
+	var content *fyne.Container = container.NewCenter(widget.NewRichTextWithText("No shortcuts found."))
 
 	var individualEntryWidth float32 = 180.0
 	var columnAmountByDefault float32 = 3.0
 
-	content := container.NewGridWrap(fyne.NewSize(individualEntryWidth, 250))
-	for _, b := range createButtons(files) {
-		content.Add(b)
+	files, err := listFiles(fileDir, allowedExtensions)
+	if err == nil {
+		content = container.NewGridWrap(fyne.NewSize(individualEntryWidth, 250))
+		for _, b := range createButtons(files) {
+			content.Add(b)
+		}
 	}
 
 	scrollContainer := container.NewScroll(content)
