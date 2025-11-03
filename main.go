@@ -83,24 +83,30 @@ func fetchMetadataIfExists(filePath string) (prettyName string, imagePath string
 }
 
 func openFile(path string) error {
-	var cmd string
-	var args []string
-
-	wrappedPath := fmt.Sprintf("'%s'", path)
-
 	switch runtime.GOOS {
 	case "windows":
-		cmd = "cmd"
-		args = []string{"/c", "start", "", wrappedPath}
+		_, err := Start("cmd", "/c", "start", "", path)
+		return err
 	case "darwin":
-		cmd = "open"
-		args = []string{path}
+		return exec.Command("open", path).Start()
 	default: // linux and others
-		cmd = "xdg-open"
-		args = []string{path}
+		return exec.Command("xdg-open", path).Start()
 	}
+}
 
-	return exec.Command(cmd, args...).Start()
+func Start(args ...string) (p *os.Process, err error) {
+	if args[0], err = exec.LookPath(args[0]); err == nil {
+		var procAttr os.ProcAttr
+		procAttr.Files = []*os.File{
+			os.Stdin,
+			os.Stdout, os.Stderr,
+		}
+		p, err := os.StartProcess(args[0], args, &procAttr)
+		if err == nil {
+			return p, nil
+		}
+	}
+	return nil, err
 }
 
 func createButtons(files []shortcutEntry) []*fyne.Container {
